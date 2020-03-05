@@ -348,11 +348,11 @@ class DatabaseTestCase(ClusterTestCase, ConnectedTestCaseMixin):
 
     @classmethod
     def get_setup_script(cls):
-        # Always create the test module.
-        script = 'CREATE MODULE test;'
+        script = ''
 
-        # look at all SCHEMA entries and potentially create multiple modules
-        #
+        # Look at all SCHEMA entries and potentially create multiple
+        # modules, but always create the 'test' module.
+        schema = ['\nmodule test {}']
         for name, val in cls.__dict__.items():
             m = re.match(r'^SCHEMA(?:_(\w+))?', name)
             if m:
@@ -360,14 +360,13 @@ class DatabaseTestCase(ClusterTestCase, ConnectedTestCaseMixin):
                     '__', '.')
 
                 with open(val, 'r') as sf:
-                    schema = sf.read()
+                    module = sf.read()
 
-                if (module_name != 'test' and module_name != 'default'):
-                    script += f'\nCREATE MODULE {module_name};'
+                schema.append(f'\nmodule {module_name} {{ {module} }}')
 
-                script += f'\nCREATE MIGRATION {module_name}::d1'
-                script += f' TO {{ {schema} }};'
-                script += f'\nCOMMIT MIGRATION {module_name}::d1;'
+        script += f'\nCREATE MIGRATION test_migration'
+        script += f' TO {{ {"".join(schema)} }};'
+        script += f'\nCOMMIT MIGRATION test_migration;'
 
         if cls.SETUP:
             if not isinstance(cls.SETUP, (list, tuple)):
